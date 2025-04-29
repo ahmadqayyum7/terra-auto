@@ -26,6 +26,11 @@ jobs:
       - name: Terraform Refresh
         run: terraform refresh
 
+      - name: Terraform Import Resources (if needed)
+        run: |
+          terraform import aws_security_group.web_sg sg-xxxxxxxxxx || true
+          terraform import aws_key_pair.key terra-key || true
+
       - name: Terraform Validate
         run: terraform validate
 

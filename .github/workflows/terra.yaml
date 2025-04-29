@@ -11,6 +11,11 @@ jobs:
     name: Provision EC2 with Terraform
     runs-on: ubuntu-latest
 
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: us-east-1
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -20,16 +25,52 @@ jobs:
         with:
           terraform_version: 1.6.0
 
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
       - name: Terraform Init
         run: terraform init
 
       - name: Terraform Refresh
         run: terraform refresh
 
-      - name: Terraform Import Resources (if needed)
+      - name: Auto-import Security Group if not in state
         run: |
-          terraform import aws_security_group.web_sg sg-xxxxxxxxxx || true
-          terraform import aws_key_pair.key terra-key || true
+          if ! terraform state list | grep -q "aws_security_group.web_sg"; then
+            echo "Security Group not in state. Attempting to find and import..."
+
+            SG_ID=$(aws ec2 describe-security-groups \
+              --filters Name=group-name,Values=web-sg Name=vpc-id,Values=vpc-0da5b24fd51077b24 \
+              --query "SecurityGroups[0].GroupId" --output text)
+
+            if [[ "$SG_ID" != "None" && "$SG_ID" != "null" ]]; then
+              terraform import aws_security_group.web_sg "$SG_ID"
+            else
+              echo "Security Group not found in AWS."
+            fi
+          else
+            echo "Security Group already in Terraform state"
+          fi
+
+      - name: Auto-import Key Pair if not in state
+        run: |
+          if ! terraform state list | grep -q "aws_key_pair.key"; then
+            echo "Key Pair not in state. Checking existence in AWS..."
+
+            EXISTS=$(aws ec2 describe-key-pairs --key-names terra-key --query "KeyPairs[0].KeyName" --output text || echo "None")
+
+            if [[ "$EXISTS" == "terra-key" ]]; then
+              terraform import aws_key_pair.key terra-key
+            else
+              echo "Key Pair terra-key does not exist in AWS"
+            fi
+          else
+            echo "Key Pair already in Terraform state"
+          fi
 
       - name: Terraform Validate
         run: terraform validate
@@ -40,8 +81,3 @@ jobs:
       - name: Terraform Apply (on main only)
         if: github.ref == 'refs/heads/main'
         run: terraform apply -auto-approve
-
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: us-east-1

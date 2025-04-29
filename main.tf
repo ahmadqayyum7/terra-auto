@@ -29,13 +29,3 @@ resource "aws_instance" "web" {
     Name = "Test-Instance"
   }
 }
-
-resource "aws_s3_bucket" "terraform_state" {
-  bucket = "my-s3-terraform-bucket"
-  acl    = "private"
-
-  tags = {
-    Name        = "Terraform State Bucket"
-    Environment = "Production"
-  }
-}

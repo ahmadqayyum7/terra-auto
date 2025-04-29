@@ -12,10 +12,10 @@ provider "aws" {
   region = var.aws_region # Reference the variable from variables.tf
 }
 
-# backend "s3" {
+  backend "s3" {
   
-#   bucket = "my-s3-bucket"
-#   key = "terraform.tfstate"
-#   region = "us-east-1"
-#   dynamodb_table = "my-table"
-# }
+    bucket = "my-s3-bucket"
+    key = "terraform.tfstate"
+    region = "us-east-1"
+    dynamodb_table = "my-table"
+  }

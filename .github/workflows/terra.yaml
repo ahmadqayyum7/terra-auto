@@ -23,13 +23,16 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Refresh
+      - name: Refresh Terraform State
         run: terraform refresh
 
-      - name: Terraform Import Resources (if needed)
+      - name: Check Terraform State (Ensure Resources Are Correct)
+        run: terraform state list
+
+      - name: Import Resources if Missing
         run: |
-          terraform import aws_security_group.web_sg sg-xxxxxxxxxx || true
-          terraform import aws_key_pair.key terra-key || true
+          terraform import aws_security_group.web_sg sg-xxxxxxxxxx || echo "Security Group already imported"
+          terraform import aws_key_pair.key terra-key || echo "Key Pair already imported"
 
       - name: Terraform Validate
         run: terraform validate
